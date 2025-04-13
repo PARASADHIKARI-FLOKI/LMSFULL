@@ -21,9 +21,9 @@ export const clerkwebhooks = async (req,res)=>{
                     _id:data.id,
                     email:data.email_addresses[0].email_address,
                     name:data.first_name + ""+ data.last_name,
-                    imageUrl:data.image_url
+                    imageUrl:data.image_url,
                 }
-                await userData.create(userData)
+                await User.create(userData)
                 res.json({})
                 break;
             }
@@ -32,7 +32,7 @@ export const clerkwebhooks = async (req,res)=>{
                 const userData={
                     email:data.email_address[0].email_address,
                     name:data.first_name + ""+ data.last_name,
-                    imageUrl:data.image_url
+                    imageUrl:data.image_url,
                 }
                 await User.findByIdAndUpdate(data.id,userData)
                 res.json({})
