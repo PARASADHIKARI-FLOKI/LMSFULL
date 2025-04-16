@@ -8,6 +8,8 @@ import { clerkwebhooks } from './src/controllers/webhooks.js'
 import educatorRouter from './src/routes/educatorRoutes.js'
 import { clerkMiddleware } from '@clerk/express'
 import connectCloudinary from './src/configs/cloudinary.js'
+import courseRoute from './src/routes/courseRoute.js'
+import userRouter from './src/routes/userRoutes.js'
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url)
@@ -32,6 +34,8 @@ app.use(clerkMiddleware)
 app.get('/',(req,res)=>res.send('API Working'))
 app.post('/clerk',express.json(), clerkwebhooks)
 app.use('/api/educator',express.json(),educatorRouter)
+app.use('/api/course',express.json(),courseRoute)
+app.use('/api/user',express.json(),userRouter)
 
 //Port
 const PORT = process.env.PORT || 5002
