@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import connectDB from './src/configs/mongodb.js'
-import { clerkwebhooks } from './src/controllers/webhooks.js'
+import { clerkwebhooks, stripeWebhooks } from './src/controllers/webhooks.js'
 import educatorRouter from './src/routes/educatorRoutes.js'
 import { clerkMiddleware } from '@clerk/express'
 import connectCloudinary from './src/configs/cloudinary.js'
@@ -36,6 +36,7 @@ app.post('/clerk',express.json(), clerkwebhooks)
 app.use('/api/educator',express.json(),educatorRouter)
 app.use('/api/course',express.json(),courseRoute)
 app.use('/api/user',express.json(),userRouter)
+app.post('/stripe',express.raw({type:'application/json'}),stripeWebhooks)
 
 //Port
 const PORT = process.env.PORT || 5002
