@@ -1,11 +1,10 @@
 import { Webhook } from "svix";
 import User from "../models/User.js";
 import Stripe from "stripe";
-import {Purchase} from '../models/Purchase.js'
+import { Purchase } from '../models/Purchase.js';
 import Course from "../models/Course.js";
 
-//API controller function to manage Clerk User with Database
-
+// Clerk webhook handler
 export const clerkwebhooks = async (req, res) => {
   try {
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
@@ -23,42 +22,42 @@ export const clerkwebhooks = async (req, res) => {
         const userData = {
           _id: data.id,
           email: data.email_addresses[0].email_address,
-          name: data.first_name + "" + data.last_name,
-          imageUrl: data.image_url,
+          name: (data.first_name || '') + " " + (data.last_name || ''),
+          imageUrl: data.image_url || '', // ✅ safe default
         };
         await User.create(userData);
-        res.json({});
+        res.json({ success: true });
         break;
       }
 
       case "user.updated": {
         const userData = {
-          email: data.email_address[0].email_address,
-          name: data.first_name + "" + data.last_name,
-          imageUrl: data.image_url,
+          email: data.email_addresses[0].email_address,
+          name: (data.first_name || '') + " " + (data.last_name || ''),
+          imageUrl: data.image_url || '',
         };
         await User.findByIdAndUpdate(data.id, userData);
-        res.json({});
+        res.json({ success: true });
         break;
       }
 
       case "user.deleted": {
         await User.findByIdAndDelete(data.id);
-        res.json({});
+        res.json({ success: true });
         break;
       }
 
       default:
-        break;
+        res.json({ success: true });
     }
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
-const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
-
+// Stripe webhook handler
 export const stripeWebhooks = async (request, response) => {
+  const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY); // ✅ inside function
   const sig = request.headers["stripe-signature"];
 
   let event;
@@ -70,7 +69,8 @@ export const stripeWebhooks = async (request, response) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    response.status(400).send(`Webhook Error: ${err.message}`);
+    console.error("Stripe webhook verification failed:", err.message);
+    return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   // Handle the event
@@ -86,18 +86,18 @@ export const stripeWebhooks = async (request, response) => {
       const { purchaseId } = session.data[0].metadata;
       const purchaseData = await Purchase.findById(purchaseId);
       const userData = await User.findById(purchaseData.userId);
-      const courseData = await Course.findById(
-        purchaseData.courseId.toString()
-      );
+      const courseData = await Course.findById(purchaseData.courseId.toString());
 
-      courseData.enrolledStudents.push(userData);
-      await courseData.save();
+      if (courseData && userData) {
+        courseData.enrolledStudents.push(userData._id);
+        await courseData.save();
 
-      userData.enrolledCourses.push(courseData._id);
-      await userData.save();
+        userData.enrolledCourses.push(courseData._id);
+        await userData.save();
 
-      purchaseData.status = "completed";
-      await purchaseData.save();
+        purchaseData.status = "completed";
+        await purchaseData.save();
+      }
       break;
     }
 
@@ -111,16 +111,16 @@ export const stripeWebhooks = async (request, response) => {
 
       const { purchaseId } = session.data[0].metadata;
       const purchaseData = await Purchase.findById(purchaseId);
-      purchaseData.status = "failed";
-      await purchaseData.save();
-
+      if (purchaseData) {
+        purchaseData.status = "failed";
+        await purchaseData.save();
+      }
       break;
     }
-    // ... handle other event types
+
     default:
       console.log(`Unhandled event type ${event.type}`);
   }
 
-  // Return a response to acknowledge receipt of the event
   response.json({ received: true });
 };
